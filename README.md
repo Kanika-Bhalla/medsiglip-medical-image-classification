@@ -19,16 +19,37 @@ Randomly splitting image rows can leak related images across train, validation,
 and test sets. This implementation provides a group-aware split utility so that
 all images from the same patient (preferred) or study remain in one partition.
 
-## Pipeline
+## Dual-encoder architecture and downstream pipeline
+
+MedSigLIP is a dual-encoder vision-language model. During zero-shot inference,
+the image encoder and text encoder independently map images and clinical text
+prompts into a shared embedding space. Cosine similarity between the two
+embeddings provides the zero-shot class scores. During supervised transfer
+learning, this project reuses the pretrained image encoder and adds a trainable
+classification head; the text encoder is not required for that branch.
 
 ```mermaid
-flowchart LR
-    A[Medical images] --> B[Modality-aware preprocessing]
-    B --> C[MedSigLIP vision encoder]
-    C --> D[Linear classification head]
-    D --> E[Validation thresholds]
-    E --> F[Independent test evaluation]
+flowchart TD
+    A[Medical image] --> B[Modality-aware preprocessing]
+    B --> C[MedSigLIP image encoder]
+    D[Clinical text prompts] --> E[MedSigLIP text encoder]
+    C --> F[Image embedding]
+    E --> G[Text embeddings]
+    F --> H[Cosine similarity]
+    G --> H
+    H --> I[Zero-shot predictions]
+    C --> J[Linear classification head]
+    J --> K[Validation-selected thresholds]
+    K --> L[Independent test evaluation]
 ```
+
+### How the two branches are used
+
+| Branch | Image encoder | Text encoder | Output |
+|---|---:|---:|---|
+| Zero-shot image-text classification | Yes | Yes | Similarity-based class scores |
+| Frozen-encoder linear probe | Frozen | No | Supervised class logits |
+| Full fine-tuning | Trainable | No | Supervised class logits |
 
 ## Preliminary exercise results
 
@@ -161,4 +182,3 @@ official Google, Emory University, or HITI Lab repository.
 
 This repository is for research and educational use only. It is not a medical
 device and must not be used for diagnosis or patient-care decisions.
-

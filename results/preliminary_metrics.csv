@@ -1,0 +1,4 @@
+approach,macro_roc_auc,status
+Frozen encoder / linear probe,0.8124,Preliminary image-level exercise result
+Full fine-tuning,0.7921,Preliminary image-level exercise result
+

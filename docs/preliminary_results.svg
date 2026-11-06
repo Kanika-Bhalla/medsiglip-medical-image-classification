@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="430" viewBox="0 0 920 430" role="img" aria-labelledby="title desc">
+  <title id="title">Preliminary MedSigLIP macro ROC-AUC comparison</title>
+  <desc id="desc">Frozen encoder macro ROC-AUC 0.8124 and full fine-tuning 0.7921. Results require a patient-grouped rerun.</desc>
+  <rect width="920" height="430" fill="#ffffff"/>
+  <text x="60" y="52" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#162033">Preliminary MedSigLIP comparison</text>
+  <text x="60" y="82" font-family="Arial, sans-serif" font-size="16" fill="#526079">Macro ROC-AUC from the original 1,000-image exercise</text>
+  <line x1="270" y1="330" x2="850" y2="330" stroke="#aeb8c8" stroke-width="2"/>
+  <line x1="270" y1="125" x2="270" y2="330" stroke="#aeb8c8" stroke-width="2"/>
+  <text x="60" y="179" font-family="Arial, sans-serif" font-size="18" fill="#162033">Frozen encoder</text>
+  <rect x="270" y="145" width="471" height="52" rx="7" fill="#2f78c4"/>
+  <text x="754" y="179" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#162033">0.8124</text>
+  <text x="60" y="269" font-family="Arial, sans-serif" font-size="18" fill="#162033">Full fine-tuning</text>
+  <rect x="270" y="235" width="459" height="52" rx="7" fill="#65a9df"/>
+  <text x="742" y="269" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#162033">0.7921</text>
+  <text x="60" y="385" font-family="Arial, sans-serif" font-size="15" fill="#9a4e00">Preliminary: a patient- or study-grouped rerun is required before definitive reporting.</text>
+</svg>
+

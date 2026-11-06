@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this portfolio implementation, please cite the repository and the upstream MedSigLIP work."
+title: "MedSigLIP Medical Image Classification"
+type: software
+authors:
+  - family-names: Bhalla
+    given-names: Kanika
+version: 0.1.0
+date-released: 2026-11-06
+repository-code: "https://github.com/Kanika-Bhalla/medsiglip-medical-image-classification"
+license: Apache-2.0
+

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "medsiglip-medical-image-classification"
+version = "0.1.0"
+description = "Leakage-aware MedSigLIP transfer learning for medical image classification"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "lightning>=2.5,<3",
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<3",
+  "pillow>=10,<13",
+  "scikit-learn>=1.5,<2",
+  "torch>=2.4,<3",
+  "transformers>=4.50,<5",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

@@ -1,5 +1,9 @@
 # MedSigLIP Medical Image Classification
 
+[![CI](https://github.com/Kanika-Bhalla/medsiglip-medical-image-classification/actions/workflows/ci.yml/badge.svg)](https://github.com/Kanika-Bhalla/medsiglip-medical-image-classification/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
 Leakage-aware transfer learning and zero-shot medical image classification with
 [MedSigLIP](https://huggingface.co/google/medsiglip-448).
 
@@ -11,6 +15,10 @@ This portfolio project demonstrates a complete medical vision-language workflow:
 - full encoder fine-tuning;
 - validation-set threshold selection with Youden's index; and
 - independent test-set ROC-AUC, sensitivity, and specificity evaluation.
+
+> **Portfolio contribution:** Implemented and modified the end-to-end pipeline,
+> including paired-prompt zero-shot inference, leakage-aware dataset splitting,
+> frozen and trainable encoder experiments, threshold selection, and evaluation.
 
 ## Why this project matters
 
@@ -27,6 +35,8 @@ prompts into a shared embedding space. Cosine similarity between the two
 embeddings provides the zero-shot class scores. During supervised transfer
 learning, this project reuses the pretrained image encoder and adds a trainable
 classification head; the text encoder is not required for that branch.
+
+![MedSigLIP dual-encoder architecture](docs/architecture.svg)
 
 ```mermaid
 flowchart TD
@@ -50,6 +60,23 @@ flowchart TD
 | Zero-shot image-text classification | Yes | Yes | Similarity-based class scores |
 | Frozen-encoder linear probe | Frozen | No | Supervised class logits |
 | Full fine-tuning | Trainable | No | Supervised class logits |
+
+## Zero-shot image-text inference
+
+The runnable zero-shot workflow uses both MedSigLIP towers. For every finding,
+it compares a positive prompt with a negative prompt and normalizes that pair
+independently, which is more appropriate than forcing co-occurring chest
+findings into a mutually exclusive softmax.
+
+```bash
+python scripts/zero_shot.py \
+  --image /path/to/deidentified_cxr.png \
+  --labels cardiomegaly "pleural effusion" pneumothorax "pulmonary edema" \
+  --output examples/zero_shot_output.json
+```
+
+The model is gated. Accept its terms on Hugging Face and run `hf auth login`
+before first use. See [`examples/`](examples/) for the output schema.
 
 ## Preliminary exercise results
 
@@ -75,14 +102,19 @@ is required before making a definitive performance claim.
 ├── src/medsiglip/
 │   ├── data.py              # Image preprocessing and PyTorch Dataset
 │   ├── evaluation.py        # ROC-AUC and Youden-threshold evaluation
+│   ├── prompts.py           # Positive/negative zero-shot prompts
 │   └── model.py             # PyTorch Lightning MedSigLIP classifier
 ├── scripts/
 │   ├── split_dataset.py     # Group-aware 60/20/20 split generation
 │   ├── train.py             # Frozen-encoder or full fine-tuning
+│   ├── zero_shot.py         # Image + text encoder inference
 │   └── evaluate.py          # Validation thresholding + test evaluation
+├── tests/                   # Leakage, prompt, and metric tests
+├── examples/                # Demo instructions and JSON schema
 ├── results/
 │   └── preliminary_metrics.csv
 └── docs/
+    ├── architecture.svg
     └── preliminary_results.svg
 ```
 
@@ -182,3 +214,4 @@ official Google, Emory University, or HITI Lab repository.
 
 This repository is for research and educational use only. It is not a medical
 device and must not be used for diagnosis or patient-care decisions.
+

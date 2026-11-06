@@ -1,0 +1,10 @@
+{
+  "model": "google/medsiglip-448",
+  "image": "/path/to/deidentified_cxr.png",
+  "scoring": "positive-vs-negative paired prompts",
+  "findings": [
+    {"label": "cardiomegaly", "probability": 0.74},
+    {"label": "pleural effusion", "probability": 0.21}
+  ],
+  "note": "Illustrative schema only; probabilities are not model outputs."
+}

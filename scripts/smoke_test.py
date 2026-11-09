@@ -11,13 +11,18 @@ import tempfile
 from pathlib import Path
 
 
-REQUIRED_MODULES = ("torch", "transformers", "PIL", "lightning", "medsiglip")
+REQUIRED_MODULES = ("torch", "transformers", "peft", "PIL", "lightning", "medsiglip")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--require-cuda", action="store_true")
     parser.add_argument("--run-model", action="store_true")
+    parser.add_argument(
+        "--check-lora",
+        action="store_true",
+        help="Download the gated vision encoder and verify that LoRA attaches correctly",
+    )
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     args = parser.parse_args()
 
@@ -37,8 +42,25 @@ def main() -> None:
     if args.require_cuda and not cuda_available:
         raise SystemExit("CUDA is required for this smoke test but is not available")
 
+    if args.check_lora:
+        from medsiglip.model import MedSigLIPClassifier
+
+        lora_model = MedSigLIPClassifier(
+            class_names=["cardiomegaly", "pleural effusion"],
+            adaptation_mode="lora",
+        )
+        if args.device == "cuda" or (args.device == "auto" and cuda_available):
+            lora_model = lora_model.cuda()
+        summary = lora_model.parameter_summary()
+        print(
+            "LoRA attachment passed: "
+            f"{summary['trainable']:,} trainable / {summary['total']:,} total "
+            f"({summary['trainable_percent']:.3f}%)"
+        )
+
     if not args.run_model:
-        print("Environment smoke test passed. Add --run-model for gated-model inference.")
+        suffix = "" if args.check_lora else " Add --run-model for gated-model inference."
+        print(f"Environment smoke test passed.{suffix}")
         return
 
     from create_demo_image import create_synthetic_cxr

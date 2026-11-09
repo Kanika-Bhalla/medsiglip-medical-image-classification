@@ -105,6 +105,8 @@ is required before making a definitive performance claim.
 │   ├── prompts.py           # Positive/negative zero-shot prompts
 │   └── model.py             # PyTorch Lightning MedSigLIP classifier
 ├── scripts/
+│   ├── create_demo_image.py # Synthetic, non-clinical demo input
+│   ├── smoke_test.py        # Environment and gated-model smoke tests
 │   ├── split_dataset.py     # Group-aware 60/20/20 split generation
 │   ├── train.py             # Frozen-encoder or full fine-tuning
 │   ├── zero_shot.py         # Image + text encoder inference
@@ -149,8 +151,15 @@ study-level leakage.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -e .
 ```
+
+Installing with `-e .` installs both the dependencies and the local
+`medsiglip` package required by the command-line scripts. For NVIDIA GPUs,
+install the CUDA-enabled PyTorch build appropriate for the system using the
+[official PyTorch selector](https://pytorch.org/get-started/locally/) before
+running `pip install -e .`.
 
 MedSigLIP is gated on Hugging Face. Authenticate outside the source code:
 
@@ -161,6 +170,55 @@ huggingface-cli login
 Never commit access tokens, API keys, `.env` files, patient data, or model
 checkpoints.
 
+## GPU setup and verification
+
+An NVIDIA GPU is strongly recommended. The zero-shot script accepts
+`--device auto`, `--device cpu`, or `--device cuda`. Training uses one device by
+default and automatically selects a safe precision mode:
+
+| Hardware | Automatic precision |
+|---|---|
+| NVIDIA A100 or another BF16-capable GPU | `bf16-mixed` |
+| NVIDIA V100 or another older CUDA GPU | `16-mixed` |
+| CPU | `32-true` |
+
+Verify the driver, CUDA-enabled PyTorch build, package installation, and GPU:
+
+```bash
+nvidia-smi
+python -c "import torch; print('CUDA:', torch.cuda.is_available()); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
+python scripts/smoke_test.py --require-cuda
+```
+
+After accepting the MedSigLIP terms and authenticating with Hugging Face, run
+the complete model-download and inference smoke test:
+
+```bash
+python scripts/smoke_test.py --require-cuda --run-model --device cuda
+```
+
+This second command downloads the gated model and may take several minutes on
+the first run. It uses a generated synthetic image; its scores verify execution
+only and are not medical results.
+
+## Reproducible zero-shot proof of concept
+
+Generate a synthetic, non-clinical input and run both MedSigLIP encoders:
+
+```bash
+python scripts/create_demo_image.py --output examples/synthetic_cxr.png
+
+python scripts/zero_shot.py \
+  --image examples/synthetic_cxr.png \
+  --labels cardiomegaly "pleural effusion" pneumothorax "pulmonary edema" \
+  --device cuda \
+  --output examples/zero_shot_output.json
+```
+
+For a meaningful research demonstration, replace the synthetic file with a
+properly de-identified image that you are authorized to use. Do not interpret
+the synthetic-image probabilities clinically.
+
 ## Training
 
 Frozen encoder / linear probe:
@@ -170,7 +228,10 @@ python scripts/train.py \
   --csv metadata_grouped_split.csv \
   --image-root /path/to/images \
   --output-dir outputs/linear_probe \
-  --freeze-encoder
+  --freeze-encoder \
+  --batch-size 4 \
+  --accumulate-grad-batches 4 \
+  --precision auto
 ```
 
 Full fine-tuning:
@@ -180,8 +241,17 @@ python scripts/train.py \
   --csv metadata_grouped_split.csv \
   --image-root /path/to/images \
   --output-dir outputs/full_finetuning \
-  --learning-rate 1e-5
+  --learning-rate 1e-5 \
+  --batch-size 2 \
+  --accumulate-grad-batches 8 \
+  --precision auto
 ```
+
+The accumulated effective batch sizes in these examples are 16. Reduce the
+physical batch size if GPU memory is limited. Use `--fast-dev-run` to execute
+one training and validation batch before launching a full experiment. You can
+override automatic selection with `--precision bf16-mixed` on A100-class GPUs
+or `--precision 16-mixed` on V100-class GPUs.
 
 ## Evaluation
 

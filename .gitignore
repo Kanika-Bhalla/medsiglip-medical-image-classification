@@ -12,6 +12,8 @@ keys_*.py
 wandb/
 lightning_logs/
 outputs/
+examples/synthetic_cxr.png
+examples/zero_shot_output.json
 weights/
 checkpoints/
 *.ckpt

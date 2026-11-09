@@ -12,6 +12,7 @@ This portfolio project demonstrates a complete medical vision-language workflow:
 - zero-shot image-text matching;
 - extraction of pretrained medical image representations;
 - frozen-encoder linear probing;
+- parameter-efficient LoRA adaptation;
 - full encoder fine-tuning;
 - validation-set threshold selection with Youden's index; and
 - independent test-set ROC-AUC, sensitivity, and specificity evaluation.
@@ -59,6 +60,7 @@ flowchart TD
 |---|---:|---:|---|
 | Zero-shot image-text classification | Yes | Yes | Similarity-based class scores |
 | Frozen-encoder linear probe | Frozen | No | Supervised class logits |
+| LoRA adaptation | Low-rank attention adapters | No | Supervised class logits |
 | Full fine-tuning | Trainable | No | Supervised class logits |
 
 ## Zero-shot image-text inference
@@ -228,7 +230,23 @@ python scripts/train.py \
   --csv metadata_grouped_split.csv \
   --image-root /path/to/images \
   --output-dir outputs/linear_probe \
-  --freeze-encoder \
+  --adaptation-mode frozen \
+  --batch-size 4 \
+  --accumulate-grad-batches 4 \
+  --precision auto
+```
+
+LoRA adaptation of the vision encoder:
+
+```bash
+python scripts/train.py \
+  --csv metadata_grouped_split.csv \
+  --image-root /path/to/images \
+  --output-dir outputs/lora \
+  --adaptation-mode lora \
+  --lora-r 8 \
+  --lora-alpha 16 \
+  --lora-dropout 0.05 \
   --batch-size 4 \
   --accumulate-grad-batches 4 \
   --precision auto
@@ -241,6 +259,7 @@ python scripts/train.py \
   --csv metadata_grouped_split.csv \
   --image-root /path/to/images \
   --output-dir outputs/full_finetuning \
+  --adaptation-mode full \
   --learning-rate 1e-5 \
   --batch-size 2 \
   --accumulate-grad-batches 8 \
@@ -252,6 +271,41 @@ physical batch size if GPU memory is limited. Use `--fast-dev-run` to execute
 one training and validation batch before launching a full experiment. You can
 override automatic selection with `--precision bf16-mixed` on A100-class GPUs
 or `--precision 16-mixed` on V100-class GPUs.
+
+### LoRA implementation
+
+LoRA is the parameter-efficient middle ground between a frozen linear probe
+and full fine-tuning. The implementation freezes the original MedSigLIP vision
+weights and inserts trainable low-rank matrices into the attention `q_proj` and
+`v_proj` layers. The classification head remains trainable. The default
+configuration is rank 8, alpha 16, and dropout 0.05; target modules are
+configurable with `--lora-target-modules`.
+
+Every run prints the total parameter count, trainable parameter count, and
+trainable percentage. LoRA training also exports:
+
+```text
+outputs/lora/lora_bundle/
+├── vision_adapter/       # PEFT adapter weights and configuration
+└── classifier_head.pt    # Class labels and supervised head weights
+```
+
+Verify adapter attachment before a full experiment:
+
+```bash
+python scripts/smoke_test.py --require-cuda --check-lora --device cuda
+```
+
+Use the same patient-grouped folds, seed, preprocessing, validation threshold
+selection, and independent test set for all three strategies. Report macro
+ROC-AUC alongside trainable parameters, peak GPU memory, and training time so
+the accuracy-efficiency trade-off is transparent.
+
+| Adaptation strategy | Macro ROC-AUC | Trainable parameters | Peak GPU memory | Training time |
+|---|---:|---:|---:|---:|
+| Frozen linear probe | Run grouped experiment | Logged automatically | Record during run | Record during run |
+| LoRA | Run grouped experiment | Logged automatically | Record during run | Record during run |
+| Full fine-tuning | Run grouped experiment | Logged automatically | Record during run | Record during run |
 
 ## Evaluation
 

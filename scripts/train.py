@@ -35,15 +35,44 @@ def parse_args():
     parser.add_argument("--freeze-encoder", action="store_true")
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-2)
-    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--max-epochs", type=int, default=100)
+    parser.add_argument("--accelerator", choices=["auto", "cpu", "gpu"], default="auto")
+    parser.add_argument("--devices", type=int, default=1)
+    parser.add_argument(
+        "--precision",
+        choices=["auto", "bf16-mixed", "16-mixed", "32-true"],
+        default="auto",
+        help="auto uses BF16 on supported GPUs, FP16 on older CUDA GPUs, and FP32 on CPU",
+    )
+    parser.add_argument("--accumulate-grad-batches", type=int, default=1)
+    parser.add_argument(
+        "--fast-dev-run",
+        action="store_true",
+        help="Run one train and validation batch to verify the pipeline",
+    )
     parser.add_argument("--seed", type=int, default=5656)
     return parser.parse_args()
 
 
+def resolve_precision(requested: str) -> str:
+    """Choose a mixed-precision mode compatible with the available hardware."""
+    if requested != "auto":
+        return requested
+    if not torch.cuda.is_available():
+        return "32-true"
+    return "bf16-mixed" if torch.cuda.is_bf16_supported() else "16-mixed"
+
+
 def main() -> None:
     args = parse_args()
+    if args.accelerator == "gpu" and not torch.cuda.is_available():
+        raise RuntimeError("--accelerator gpu was requested, but CUDA is not available")
+    precision = resolve_precision(args.precision)
+    if torch.cuda.is_available():
+        print(f"CUDA device: {torch.cuda.get_device_name(0)}")
+    print(f"Trainer precision: {precision}")
     L.seed_everything(args.seed, workers=True)
     frame = pd.read_csv(args.csv)
     train_loader, valid_loader, _ = build_dataloaders(
@@ -72,9 +101,11 @@ def main() -> None:
     )
     trainer = L.Trainer(
         max_epochs=args.max_epochs,
-        accelerator="auto",
-        devices=1,
-        precision="bf16-mixed" if torch.cuda.is_available() else "32-true",
+        accelerator=args.accelerator,
+        devices=args.devices,
+        precision=precision,
+        accumulate_grad_batches=args.accumulate_grad_batches,
+        fast_dev_run=args.fast_dev_run,
         deterministic=True,
         gradient_clip_val=1.0,
         callbacks=[checkpoint, EarlyStopping(monitor="val_loss", mode="min", patience=10)],
